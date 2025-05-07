@@ -1,0 +1,82 @@
+When you annotate a field with @JsonIgnore (jac-kson annotation), Jac-kson (the library Spring Boot uses to convert objects to JSON) 
+skips that field when serializing/de-serializing.
+
+@JsonIgnore
+private String password;
+
+So in your API response:
+
+{
+  "id": 1,
+  "name": "Disha"
+  // password is hidden
+}
+
+Useful for:
+Hiding sensitive data like password, email, internal IDs
+Reducing pay-load size
+Avoiding confusing nested objects
+
+*Imagine You Have Two Things:
+Candidate
+Vote
+
+And their relationship is like this:
+🗳️ A Candidate has a list of Votes
+📥 Each Vote belongs to a Candidate
+
+This is what we call a two-way (bidirectional) relationship.
+
+😬 Now, when you return a Candidate in a JSON response:
+Spring (using Jac-kson) tries to convert this into a JSON object like this:
+
+{
+  "id": 1,
+  "cname": "Disha",
+  "votes": [
+    {
+      "id": 101,
+      "candidate": {
+        "id": 1,
+        "cname": "Disha",
+        "votes": [
+          {
+            "id": 101,
+            "candidate": {
+              "id": 1,
+              ...
+See what's happening? 😳
+
+1.Candidate has Vote
+
+2.Vote has back-reference to the same Candidate
+
+3.That Candidate again has Vote...
+
+4.And it keeps going forever 🔁
+
+👉 This never ends — and the result is: 💥 StackOverflowError (too much recursion)
+💡 How @JsonIgnore fixes this:
+When you do this in Vote.java:
+
+@ManyToOne
+@JsonIgnore
+private Candidate candidate;
+
+You’re basically saying:
+"Hey, when turning this into JSON, just skip the 'candidate' field inside each vote."
+
+So now your JSON becomes:
+
+{
+  "id": 1,
+  "cname": "Disha",
+  "votes": [
+    {
+      "id": 101
+      // no "candidate" here, so recursion ends
+    }
+  ]
+}
+✨ Boom — now there’s no loop, no confusion, and no StackOverflowError.
+
